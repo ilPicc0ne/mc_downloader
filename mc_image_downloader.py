@@ -1,18 +1,23 @@
-
 import requests
 import os
 import argparse, sys
+from sys import exit
 
 
 env = 'prod'
+flat = False
 
 parser=argparse.ArgumentParser()
 parser.add_argument('--auth', help='myCloud Bearer token. example "Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==')
 #
 parser.add_argument('--env', help='Enviroment: prod, dev2 or test')
+parser.add_argument('-f', action='store_true', help='Adding this option will download all images without creating sub-folders (year/month)')
 args=parser.parse_args()
 
 auth_token = args.auth
+if (args.f):
+    flat = True
+
 
 if (args.auth):
     print()
@@ -25,7 +30,7 @@ if args.env:
 
 #initializing default variables
 username = ''
-location = 'downloads' + '/' + env
+location = ''
 env_url = 'https://library.'+ env + '.mdl.swisscom.ch'
 
 
@@ -42,6 +47,7 @@ def request_get_url(url, stream_on):
     try: 
         if r.status_code == 401:
             print('The auhtoriation token you provided is invalid for the Chosen environment ' + env)
+            input('Please restart with valid bearer. Press any key to quit.')
             exit(0)
         r.raise_for_status()
     except requests.exceptions.HTTPError as e: 
@@ -103,8 +109,10 @@ def download_photos_per_month(month_group):
     print('Containing ' + str(month_group['Count']) + ' assets')
     
     #creating directory for current month
+    current_dir = location 
+    if flat == False:
+        current_dir = current_dir + '/' + year + '/' + month
     
-    current_dir = location + '/' + year + '/' + month
     os.makedirs(current_dir, exist_ok=True)
     
     #get file list
@@ -125,7 +133,11 @@ def get_current_user_name():
     
 
 
-location = location + '/' + get_current_user_name()
+if location == '':
+    location = get_current_user_name()
+else:
+    location = location + '/' + get_current_user_name()
+
 
 
 timeline_json = init_timeline_overview()
@@ -134,4 +146,3 @@ os.makedirs(location, exist_ok=True)
 
 for group in timeline_json['Groups']:
     download_photos_per_month(group)
-
