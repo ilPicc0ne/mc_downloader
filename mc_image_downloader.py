@@ -3,34 +3,53 @@ import requests
 import os
 import argparse, sys
 
-parser=argparse.ArgumentParser()
 
-parser.add_argument('--auth', help='myCloud Bearer token. example "Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==')
-parser.add_argument('--env', help='Enviroment: prod, dev2 or test')
-
-args=parser.parse_args()
-
-username = ''
-
-env = 'dev2'
-auth_token = 'Bearer RupSMYjyRtGBk5rj20RxgQ=='
-
-
-auth_token = 'Bearer lAM6wZROSBWNqJRlyoZmeA=='
 env = 'prod'
 
-location = 'downloads' + '/' + env
+parser=argparse.ArgumentParser()
+parser.add_argument('--auth', help='myCloud Bearer token. example "Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==')
+#
+parser.add_argument('--env', help='Enviroment: prod, dev2 or test')
+args=parser.parse_args()
 
+auth_token = args.auth
+
+if (args.auth):
+    print()
+else:
+    auth_token = input ("Please paste myCloud authentication token (e.g. Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==): ")
+
+
+if args.env:
+    env = args.env
+
+#initializing default variables
+username = ''
+location = 'downloads' + '/' + env
 env_url = 'https://library.'+ env + '.mdl.swisscom.ch'
 
-payload={}
-headers = {
+
+
+def request_get_url(url, stream_on):
+    payload={}
+    headers = {
     'Accept': 'application/json, text/javascript, */*; q=0.01',
     'Authorization': auth_token
     }
-
     
-
+    r = requests.request("GET", url, headers=headers, data=payload, stream=stream_on)
+    
+    try: 
+        if r.status_code == 401:
+            print('The auhtoriation token you provided is invalid for the Chosen environment ' + env)
+            exit(0)
+        r.raise_for_status()
+    except requests.exceptions.HTTPError as e: 
+        print (e)
+    
+    return r
+    
+        
 def download_single_object(image_meta, current_dir):
     base_url = env_url + "/download/"
     
@@ -46,7 +65,7 @@ def download_single_object(image_meta, current_dir):
     
     url = base_url + image_meta['Identifier']
     
-    r = requests.request("GET", url, headers=headers, data=payload, stream=True)
+    r = request_get_url(url, True)
     
     if r.status_code == 200:
         with open(full_file_path, 'wb') as f:
@@ -64,7 +83,7 @@ def init_timeline_overview():
     url = env_url + "/v2/timeline/index?type=monthly"
     print (url)
     
-    r = requests.request("GET", url, headers=headers, data=payload)
+    r = request_get_url(url, False)
    
     timeline_json = r.json()
     print(timeline_json['TotalAssets'])
@@ -90,26 +109,28 @@ def download_photos_per_month(month_group):
     
     #get file list
 
-    response = requests.request("GET", url, headers=headers, data=payload)
-    images_of_current_month = response.json()
+    r = request_get_url(url, False)
+    images_of_current_month = r.json()
 
     for image in images_of_current_month:
         download_single_object(image, current_dir)
 
 def get_current_user_name():
     url = 'https://identity.' + env + '.mdl.swisscom.ch/me'
-    r = requests.request("GET", url, headers=headers, data=payload)
+    r = request_get_url(url, False)
     
     r_me = r.json()
     username = r_me['UserName']
     return username
     
 
+
 location = location + '/' + get_current_user_name()
 
-os.makedirs(location, exist_ok=True)
 
 timeline_json = init_timeline_overview()
+
+os.makedirs(location, exist_ok=True)
 
 for group in timeline_json['Groups']:
     download_photos_per_month(group)
