@@ -1,13 +1,14 @@
 # mc_downloader
 Downloads Photos and Videos from Swisscom myCloud
 
+## Overview
 The appliation will download all your photos and videos to your computer. It will automatically create folders for year and month and put the photos and videos in the respective folders
 
 This application is currently only availble in a tech preview in alpha version.
 
 It can be used on all myCloud enviroments (prod, dev2, test).  Default is prod.
 
-##prerequisits
+## prerequisits
 
 You will need to have python installed on your computer. https://www.python.org/downloads/
 
@@ -22,7 +23,7 @@ If you get error messages, you may need to to install extra libraries such as re
 pip install requests
 ```
 
-##Usage
+## Usage
 
 In order to use this application. You will need to login into your myCloud account (www.mycloud.ch) on browser and extract the Authtentication token from the resuests. This can be done using the inspector on a browser like chrome and observing the requests.
 
@@ -39,7 +40,7 @@ python mc_image_downloader.py
 The application will prompt you to enter the access token. 
 
 
-###alternative provide access token as parameter
+## Command line arguments
 
 To start the application with your bearer you can run it with these parameters
 ```
