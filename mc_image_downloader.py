@@ -2,6 +2,10 @@ import requests
 import os
 import argparse, sys
 from sys import exit
+import threading
+import threading, queue
+
+import mc_api
 
 
 env = 'prod'
@@ -84,10 +88,14 @@ def download_single_object(image_meta, current_dir):
     print('File saved:' + full_file_path + ', ' + file_size)
     
 
+def createNewDownloadThread(image_meta, current_dir):
+    download_thread = threading.Thread(target=download_single_object, args=(image_meta,current_dir))
+    download_thread.start()
+    
+    
 def init_timeline_overview():
 
     url = env_url + "/v2/timeline/index?type=monthly"
-    print (url)
     
     r = request_get_url(url, False)
    
@@ -121,7 +129,8 @@ def download_photos_per_month(month_group):
     images_of_current_month = r.json()
 
     for image in images_of_current_month:
-        download_single_object(image, current_dir)
+        createNewDownloadThread(image, current_dir)
+        #download_single_object(image, current_dir)
 
 def get_current_user_name():
     url = 'https://identity.' + env + '.mdl.swisscom.ch/me'
@@ -130,7 +139,8 @@ def get_current_user_name():
     r_me = r.json()
     username = r_me['UserName']
     return username
-    
+
+
 
 
 if location == '':
@@ -138,11 +148,12 @@ if location == '':
 else:
     location = location + '/' + get_current_user_name()
 
-
-
 timeline_json = init_timeline_overview()
 
 os.makedirs(location, exist_ok=True)
 
 for group in timeline_json['Groups']:
     download_photos_per_month(group)
+    
+    
+    
