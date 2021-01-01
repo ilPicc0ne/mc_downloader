@@ -2,42 +2,80 @@ import requests
 import os
 import argparse, sys
 from sys import exit
-import threading
-import threading, queue
 
-import mc_api
+from datetime import datetime
+from download_manager import DownloadManager, DownloadItem
+import helper
+
 
 
 env = 'prod'
 flat = False
-
-parser=argparse.ArgumentParser()
-parser.add_argument('--auth', help='myCloud Bearer token. example "Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==')
-#
-parser.add_argument('--env', help='Enviroment: prod, dev2 or test')
-parser.add_argument('-f', action='store_true', help='Adding this option will download all images without creating sub-folders (year/month)')
-args=parser.parse_args()
-
-auth_token = args.auth
-if (args.f):
-    flat = True
-
-
-if (args.auth):
-    print()
-else:
-    auth_token = input ("Please paste myCloud authentication token (e.g. Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==): ")
-
-
-if args.env:
-    env = args.env
-
-#initializing default variables
 username = ''
 location = ''
-env_url = 'https://library.'+ env + '.mdl.swisscom.ch'
+mc_library_url = ''
+mc_identiy_url = ''
+auth_token = ''
+auth_ok = False
+
+size_downloaded = 0
+
+dm = None
 
 
+
+
+def authenticate():
+    global auth_token
+    while (is_authenticated()== False):
+        auth_token = input ("Please paste myCloud authentication token (e.g. Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==): ")
+         
+def is_authenticated():
+
+    #r = requests.request("GET", mc_identiy_url+'/me', headers=headers, data=payload)
+    r = request_get_url(mc_identiy_url+'/me', False)
+    if (r.status_code == 401):
+        print('Authentication failed.')
+        return False
+    elif (r.status_code == 200):
+        return True
+    else:
+        r.raise_for_status()
+  
+def init_arguments():
+    global flat
+    global mc_identiy_url
+    global mc_library_url
+    global env
+    global auth_token
+    
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--auth', help='myCloud Bearer token. example "Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==')
+    parser.add_argument('--env', help='Enviroment: prod, dev2 or test')
+    parser.add_argument('-f', action='store_true', help='Adding this option will download all images without creating sub-folders (year/month)')
+    args=parser.parse_args()
+    
+    if (args.f):
+        flat = True
+    
+    if args.env is not None:
+        env = args.env
+        
+    mc_library_url = 'https://library.'+ env + '.mdl.swisscom.ch'
+    mc_identiy_url = 'https://identity.' + env + '.mdl.swisscom.ch'
+        
+    if args.auth is not None:
+        auth_token = args.auth
+    authenticate()
+
+def init_location():
+    global location
+    if location == '':
+        location = get_current_user_name()
+    else:
+        location = location + '/' + get_current_user_name()
+        
+    os.makedirs(location, exist_ok=True)
 
 def request_get_url(url, stream_on):
     payload={}
@@ -50,62 +88,45 @@ def request_get_url(url, stream_on):
     
     try: 
         if r.status_code == 401:
-            print('The auhtoriation token you provided is invalid for the Chosen environment ' + env)
-            input('Please restart with valid bearer. Press any key to quit.')
-            exit(0)
-        r.raise_for_status()
+            print('Access token is invialid')
+            authenticate()()
+        else:
+            r.raise_for_status()
     except requests.exceptions.HTTPError as e: 
         print (e)
     
     return r
     
-        
 def download_single_object(image_meta, current_dir):
-    base_url = env_url + "/download/"
+    global dm
     
     full_file_path = current_dir + '/' + image_meta['Name']
     
-    file_size = str(round(image_meta['Length'] /1024/1024, 2)) + ' MB'
-    
     #check if file already exists
     if os.path.exists(full_file_path):
-        print('already exsists. Skipping. ' + full_file_path + ', ' + file_size)
         return
     
-    
+    base_url = mc_library_url + "/download/"
     url = base_url + image_meta['Identifier']
     
-    r = request_get_url(url, True)
-    
-    if r.status_code == 200:
-        with open(full_file_path, 'wb') as f:
-            for chunk in r:
-                f.write(chunk)
-    
-    #modified_time_to_creation = image_meta['TimestampEpoch']
-    #os.utime(full_file_path,(modified_time_to_creation, modified_time_to_creation ))
-            
-    print('File saved:' + full_file_path + ', ' + file_size)
-    
-
-def createNewDownloadThread(image_meta, current_dir):
-    download_thread = threading.Thread(target=download_single_object, args=(image_meta,current_dir))
-    download_thread.start()
-    
+    di = DownloadItem(url, full_file_path, image_meta['Length'],0)
+    dm.add_item_to_qeue(di)
+    #print ('added item to que: ' + image_meta['Name'])
     
 def init_timeline_overview():
 
-    url = env_url + "/v2/timeline/index?type=monthly"
+    url = mc_library_url + "/v2/timeline/index?type=monthly"
     
     r = request_get_url(url, False)
    
     timeline_json = r.json()
     print(timeline_json['TotalAssets'])
     return timeline_json
-    
+
 
 def download_photos_per_month(month_group):
-    base_url = env_url + "/v2/timeline/monthly/"
+    global dm
+    base_url = mc_library_url + "/v2/timeline/monthly/"
     
     year = str(month_group['Year'])
     month = str(month_group['Month'])
@@ -113,8 +134,9 @@ def download_photos_per_month(month_group):
     year_month =  year + '/' + month
     url = base_url + year_month
     
-    print('Starting download for ' + year_month)
-    print('Containing ' + str(month_group['Count']) + ' assets')
+    helper.print_status(dm.q.qsize(),dm.q_total_size,dm.downloaded_size, 'Adding new images to Qeue' )
+    #print(f'Qeue Items: {dm.q.qsize()}, Size: {helper.humansize(dm.q_total_size)} Adding new files to download queue: {year_month}, ')
+    
     
     #creating directory for current month
     current_dir = location 
@@ -129,8 +151,7 @@ def download_photos_per_month(month_group):
     images_of_current_month = r.json()
 
     for image in images_of_current_month:
-        createNewDownloadThread(image, current_dir)
-        #download_single_object(image, current_dir)
+        download_single_object(image, current_dir)
 
 def get_current_user_name():
     url = 'https://identity.' + env + '.mdl.swisscom.ch/me'
@@ -141,16 +162,13 @@ def get_current_user_name():
     return username
 
 
+init_arguments()
+init_location()
 
-
-if location == '':
-    location = get_current_user_name()
-else:
-    location = location + '/' + get_current_user_name()
+dm = DownloadManager(5, auth_token)
 
 timeline_json = init_timeline_overview()
-
-os.makedirs(location, exist_ok=True)
+time_started = datetime.now()
 
 for group in timeline_json['Groups']:
     download_photos_per_month(group)
