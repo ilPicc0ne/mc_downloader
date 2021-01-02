@@ -1,6 +1,6 @@
 /downloads
 /build
-/dist
+/distributions
 silvangeser
 *.spec
 venv
