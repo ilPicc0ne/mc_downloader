@@ -1,34 +1,79 @@
-
 import requests
 import os
 import argparse, sys
+from sys import exit
+
+from datetime import datetime
+from download_manager import DownloadManager, DownloadItem
+import helper
+
 
 
 env = 'prod'
-
-parser=argparse.ArgumentParser()
-parser.add_argument('--auth', help='myCloud Bearer token. example "Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==')
-#
-parser.add_argument('--env', help='Enviroment: prod, dev2 or test')
-args=parser.parse_args()
-
-auth_token = args.auth
-
-if (args.auth):
-    print()
-else:
-    auth_token = input ("Please paste myCloud authentication token (e.g. Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==): ")
-
-
-if args.env:
-    env = args.env
-
-#initializing default variables
+flat = False
 username = ''
-location = 'downloads' + '/' + env
-env_url = 'https://library.'+ env + '.mdl.swisscom.ch'
+location = ''
+mc_library_url = ''
+mc_identiy_url = ''
+auth_token = ''
+auth_ok = False
+
+dm = None
 
 
+
+
+def authenticate():
+    global auth_token
+    while (is_authenticated()== False):
+        auth_token = input ("Please paste myCloud authentication token (e.g. Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==): ")
+         
+def is_authenticated():
+
+    #r = requests.request("GET", mc_identiy_url+'/me', headers=headers, data=payload)
+    r = request_get_url(mc_identiy_url+'/me', False)
+    if (r.status_code == 401):
+        print('Authentication failed.')
+        return False
+    elif (r.status_code == 200):
+        return True
+    else:
+        r.raise_for_status()
+  
+def init_arguments():
+    global flat
+    global mc_identiy_url
+    global mc_library_url
+    global env
+    global auth_token
+    
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--auth', help='myCloud Bearer token. example "Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==')
+    parser.add_argument('--env', help='Enviroment: prod, dev2 or test')
+    parser.add_argument('-f', action='store_true', help='Adding this option will download all images without creating sub-folders (year/month)')
+    args=parser.parse_args()
+    
+    if (args.f):
+        flat = True
+    
+    if args.env is not None:
+        env = args.env
+        
+    mc_library_url = 'https://library.'+ env + '.mdl.swisscom.ch'
+    mc_identiy_url = 'https://identity.' + env + '.mdl.swisscom.ch'
+        
+    if args.auth is not None:
+        auth_token = args.auth
+    authenticate()
+
+def init_location():
+    global location
+    if location == '':
+        location = get_current_user_name()
+    else:
+        location = location + '/' + get_current_user_name()
+        
+    os.makedirs(location, exist_ok=True)
 
 def request_get_url(url, stream_on):
     payload={}
@@ -41,57 +86,43 @@ def request_get_url(url, stream_on):
     
     try: 
         if r.status_code == 401:
-            print('The auhtoriation token you provided is invalid for the Chosen environment ' + env)
-            exit(0)
-        r.raise_for_status()
+            print('Access token is invialid')
+            authenticate()()
+        else:
+            r.raise_for_status()
     except requests.exceptions.HTTPError as e: 
         print (e)
     
     return r
     
-        
 def download_single_object(image_meta, current_dir):
-    base_url = env_url + "/download/"
+    global dm
     
     full_file_path = current_dir + '/' + image_meta['Name']
     
-    file_size = str(round(image_meta['Length'] /1024/1024, 2)) + ' MB'
-    
     #check if file already exists
     if os.path.exists(full_file_path):
-        print('already exsists. Skipping. ' + full_file_path + ', ' + file_size)
         return
     
-    
+    base_url = mc_library_url + "/download/"
     url = base_url + image_meta['Identifier']
     
-    r = request_get_url(url, True)
+    di = DownloadItem(url, full_file_path, image_meta['Length'],0)
+    dm.add_item_to_qeue(di)
+    #print ('added item to que: ' + image_meta['Name'])
     
-    if r.status_code == 200:
-        with open(full_file_path, 'wb') as f:
-            for chunk in r:
-                f.write(chunk)
-    
-    #modified_time_to_creation = image_meta['TimestampEpoch']
-    #os.utime(full_file_path,(modified_time_to_creation, modified_time_to_creation ))
-            
-    print('File saved:' + full_file_path + ', ' + file_size)
-    
-
 def init_timeline_overview():
-
-    url = env_url + "/v2/timeline/index?type=monthly"
-    print (url)
-    
+    url = mc_library_url + "/v2/timeline/index?type=monthly"
     r = request_get_url(url, False)
-   
     timeline_json = r.json()
-    print(timeline_json['TotalAssets'])
+    total_assets = timeline_json['TotalAssets']
+    print(f'Total Photos and videos in myCloud: {total_assets:n}')
     return timeline_json
-    
+
 
 def download_photos_per_month(month_group):
-    base_url = env_url + "/v2/timeline/monthly/"
+    global dm
+    base_url = mc_library_url + "/v2/timeline/monthly/"
     
     year = str(month_group['Year'])
     month = str(month_group['Month'])
@@ -99,12 +130,12 @@ def download_photos_per_month(month_group):
     year_month =  year + '/' + month
     url = base_url + year_month
     
-    print('Starting download for ' + year_month)
-    print('Containing ' + str(month_group['Count']) + ' assets')
     
     #creating directory for current month
+    current_dir = location 
+    if flat == False:
+        current_dir = current_dir + '/' + year + '/' + month
     
-    current_dir = location + '/' + year + '/' + month
     os.makedirs(current_dir, exist_ok=True)
     
     #get file list
@@ -115,6 +146,8 @@ def download_photos_per_month(month_group):
     for image in images_of_current_month:
         download_single_object(image, current_dir)
 
+    helper.print_status(dm.q.qsize(), dm.remaining_size, dm.downloaded_size,speed=dm.get_download_speed(), time_remaining=dm.time_remaining(), description='Added' )
+    
 def get_current_user_name():
     url = 'https://identity.' + env + '.mdl.swisscom.ch/me'
     r = request_get_url(url, False)
@@ -122,16 +155,18 @@ def get_current_user_name():
     r_me = r.json()
     username = r_me['UserName']
     return username
-    
 
 
-location = location + '/' + get_current_user_name()
+init_arguments()
+init_location()
 
+dm = DownloadManager(5, auth_token)
 
 timeline_json = init_timeline_overview()
-
-os.makedirs(location, exist_ok=True)
+time_started = datetime.now()
 
 for group in timeline_json['Groups']:
     download_photos_per_month(group)
-
+    
+    
+    
