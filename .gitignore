@@ -3,3 +3,5 @@
 /dist
 silvangeser
 *.spec
+venv
+__*

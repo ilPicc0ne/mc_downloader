@@ -21,19 +21,15 @@ auth_ok = False
 dm = None
 
 
-
-
 def authenticate():
     global auth_token
     while (is_authenticated()== False):
         auth_token = input ("Please paste myCloud authentication token (e.g. Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==): ")
          
 def is_authenticated():
-
     #r = requests.request("GET", mc_identiy_url+'/me', headers=headers, data=payload)
     r = request_get_url(mc_identiy_url+'/me', False)
     if (r.status_code == 401):
-        print('Authentication failed.')
         return False
     elif (r.status_code == 200):
         return True
@@ -86,8 +82,8 @@ def request_get_url(url, stream_on):
     
     try: 
         if r.status_code == 401:
-            print('Access token is invialid')
-            authenticate()()
+            print('No valid access token needed to access myCloud.')
+            return r
         else:
             r.raise_for_status()
     except requests.exceptions.HTTPError as e: 
@@ -156,6 +152,7 @@ def get_current_user_name():
     username = r_me['UserName']
     return username
 
+print('--Welcome to the Photo/Video downloader for Swisscom myCloud.--')
 
 init_arguments()
 init_location()
