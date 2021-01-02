@@ -18,8 +18,6 @@ mc_identiy_url = ''
 auth_token = ''
 auth_ok = False
 
-size_downloaded = 0
-
 dm = None
 
 
@@ -114,13 +112,11 @@ def download_single_object(image_meta, current_dir):
     #print ('added item to que: ' + image_meta['Name'])
     
 def init_timeline_overview():
-
     url = mc_library_url + "/v2/timeline/index?type=monthly"
-    
     r = request_get_url(url, False)
-   
     timeline_json = r.json()
-    print(timeline_json['TotalAssets'])
+    total_assets = timeline_json['TotalAssets']
+    print(f'Total Photos and videos in myCloud: {total_assets:n}')
     return timeline_json
 
 
@@ -133,9 +129,6 @@ def download_photos_per_month(month_group):
     
     year_month =  year + '/' + month
     url = base_url + year_month
-    
-    helper.print_status(dm.q.qsize(),dm.q_total_size,dm.downloaded_size, 'Adding new images to Qeue' )
-    #print(f'Qeue Items: {dm.q.qsize()}, Size: {helper.humansize(dm.q_total_size)} Adding new files to download queue: {year_month}, ')
     
     
     #creating directory for current month
@@ -153,6 +146,8 @@ def download_photos_per_month(month_group):
     for image in images_of_current_month:
         download_single_object(image, current_dir)
 
+    helper.print_status(dm.q.qsize(), dm.remaining_size, dm.downloaded_size,speed=dm.get_download_speed(), time_remaining=dm.time_remaining(), description='Added' )
+    
 def get_current_user_name():
     url = 'https://identity.' + env + '.mdl.swisscom.ch/me'
     r = request_get_url(url, False)
