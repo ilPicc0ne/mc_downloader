@@ -54,7 +54,6 @@ python mc_image_downloader.py --auth 'Bearer lAM6wZROSBWNqJRlyoZmexD==' --env de
 
 # TODO
 
-- implement parallel download for faster downloads (multiprocessing.pool)
 - handle file collisions with files with same name in the same month
 - change creation date to reflect original date of asset
 - Package application to allow it to start without python installed
