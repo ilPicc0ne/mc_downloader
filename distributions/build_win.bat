@@ -1,0 +1,1 @@
+pyinstaller ../src/mc_image_downloader.py -F --onefile --distpath dist_win
