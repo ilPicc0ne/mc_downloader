@@ -1,5 +1,6 @@
 
 import threading, queue
+import os
 import time
 import random
 import requests
@@ -7,12 +8,12 @@ import helper
 from datetime import datetime
 
 class DownloadItem:
-    def __init__(self, url, full_file_path, size, retries):
+    def __init__(self, url, full_file_path, size, retries, current_dir):
         self.url = url
         self.full_file_path = full_file_path
         self.size = size
         self.retries = retries
-        
+        self.current_dir = current_dir
         
 class DownloadManager:
     
@@ -22,7 +23,6 @@ class DownloadManager:
         self.remaining_size = 0
         self.downloaded_size = 0
         self.time_started = datetime.now()
-        
         
         for t in range(num_threads):
             threading.Thread(target=self.worker, args=str(t)).start()
@@ -39,17 +39,18 @@ class DownloadManager:
         else:
             return 0
             
-        
     def worker(self, name):
         payload={}
         headers = {
         'Accept': 'application/json, text/javascript, */*; q=0.01',
         'Authorization': self.auth_token
         }
+        
         while True:
             item = self.q.get()
             r = requests.request("GET", item.url, headers=headers, data=payload)
             if r.status_code == 200:
+                os.makedirs(item.current_dir, exist_ok=True)
                 with open(item.full_file_path, 'wb') as f:
                     for chunk in r:
                         f.write(chunk)
@@ -61,12 +62,8 @@ class DownloadManager:
                 print('Authentication failed')
             else:
                 r.raise_for_status()
-            
             self.q.task_done()
 
     def add_item_to_qeue(self, download_item):
         self.q.put(download_item)
         self.remaining_size = self.remaining_size+ download_item.size
-
-
-

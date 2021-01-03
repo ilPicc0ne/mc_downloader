@@ -5,3 +5,4 @@ silvangeser
 *.spec
 venv
 __*
+launch.json
