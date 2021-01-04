@@ -43,7 +43,8 @@ class DownloadManager:
         payload={}
         headers = {
         'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'Authorization': self.auth_token
+        'Authorization': self.auth_token,
+        'User-Agent': 'Photo Downloader POC - python'
         }
         
         while True:

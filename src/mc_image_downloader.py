@@ -50,7 +50,7 @@ def user_input_config():
             flat == False
             return #default value
         elif scope == '2':
-            falt == True
+            flat == True
         else:
             set_folder_structure()
         
@@ -111,7 +111,8 @@ def request_get_url(url, stream_on):
     payload={}
     headers = {
     'Accept': 'application/json, text/javascript, */*; q=0.01',
-    'Authorization': auth_token
+    'Authorization': auth_token,
+    'User-Agent': 'Photo Downloader POC - python'
     }
     
     r = requests.request("GET", url, headers=headers, data=payload, stream=stream_on)
