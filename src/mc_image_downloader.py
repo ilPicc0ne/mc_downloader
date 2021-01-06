@@ -3,6 +3,7 @@ import os
 import argparse, sys
 from sys import exit
 import pathlib
+import requests
 
 from datetime import datetime
 from download_manager import DownloadManager, DownloadItem
@@ -101,7 +102,7 @@ def init_arguments():
         jpg = True
         
     mc_library_url = 'https://library.'+ env + '.mdl.swisscom.ch'
-    mc_identiy_url = 'https://identity.' + env + '.mdl.swisscom.ch'
+    mc_identity_url = 'https://identity.' + env + '.mdl.swisscom.ch'
         
     if args.auth is not None:
         auth_token = args.auth
