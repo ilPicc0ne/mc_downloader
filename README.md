@@ -5,9 +5,8 @@ Downloads Photos and Videos from [Swisscom myCloud](https://mycloud.ch).
 ## Overview
 The appliation will download all your photos and videos to your computer. It will automatically create folders for year and month and put the photos and videos in the respective folders
 
-This application is currently only availble in a tech preview in alpha version.
+This application is currently only availble in a tech preview in beta version.
 
-It can be used on all myCloud enviroments (prod, dev2, test).  Default is prod.
 
 ## prerequisits
 
