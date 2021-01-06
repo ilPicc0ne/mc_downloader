@@ -92,14 +92,8 @@ def init_arguments():
     
     args=parser.parse_args()
     
-    if (args.f):
-        flat = True
-
     if args.env is not None:
         env = args.env
-        
-    if args.jpg is not None:
-        jpg = True
         
     mc_library_url = 'https://library.'+ env + '.mdl.swisscom.ch'
     mc_identity_url = 'https://identity.' + env + '.mdl.swisscom.ch'
