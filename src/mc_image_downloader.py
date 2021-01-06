@@ -2,16 +2,16 @@ import requests
 import os
 import argparse, sys
 from sys import exit
+import pathlib
 
 from datetime import datetime
 from download_manager import DownloadManager, DownloadItem
 import helper
 
 
-
-
 env = 'prod'
 flat = False
+jpg = False
 username = ''
 location = ''
 mc_library_url = ''
@@ -47,10 +47,10 @@ def user_input_config():
         f = input('')
         
         if (f == '1' or f == ''):
-            flat == False
+            flat = False
             return #default value
-        elif scope == '2':
-            flat == True
+        elif f == '2':
+            flat = True
         else:
             set_folder_structure()
         
@@ -79,11 +79,14 @@ def init_arguments():
     global mc_library_url
     global env
     global auth_token
+    global jpg
     
     parser=argparse.ArgumentParser()
+    parser.add_argument('--jpg', action='store_true', help='Will download HEIC images as jpg')
     parser.add_argument('--auth', help='myCloud Bearer token. example "Bearer Xus2RupGMYjyRtGBk5rj20RxgQ==')
     parser.add_argument('--env', help='Enviroment: prod, dev2 or test')
     parser.add_argument('-f', action='store_true', help='Adding this option will download all images without creating sub-folders (year/month)')
+    
     args=parser.parse_args()
     
     if (args.f):
@@ -91,6 +94,9 @@ def init_arguments():
     
     if args.env is not None:
         env = args.env
+        
+    if args.jpg is not None:
+        jpg = True
         
     mc_library_url = 'https://library.'+ env + '.mdl.swisscom.ch'
     mc_identiy_url = 'https://identity.' + env + '.mdl.swisscom.ch'
@@ -131,15 +137,24 @@ def request_get_url(url, stream_on):
 def download_single_object(image_meta, current_dir):
     global dm
     
-    full_file_path = current_dir + '/' + image_meta['Name']
+    image_name = image_meta['Name']
+    suffix = pathlib.Path(image_name).suffix
+    
+    if suffix.lower() == '.heic' and jpg:
+        base_url = mc_library_url + "/convert/"
+        image_name = pathlib.Path(image_name).stem + '.jpg'
+    else:
+        base_url = mc_library_url + "/download/"
+        
+    full_file_path = current_dir + '/' + image_name
     
     #os.makedirs(current_dir, exist_ok=True)
     #check if file already exists
     if os.path.exists(full_file_path):
         return
     
-    base_url = mc_library_url + "/download/"
     url = base_url + image_meta['Identifier']
+    
     
     di = DownloadItem(url, full_file_path, image_meta['Length'],0, current_dir)
     dm.add_item_to_qeue(di)
