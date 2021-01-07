@@ -1,4 +1,7 @@
 from datetime import datetime
+from win32_setctime import setctime
+import platform
+
 
 import os
 
@@ -39,10 +42,20 @@ def print_status(items_in_qeue, size_remaining, size_downloaded, speed, time_rem
     print(f'Qeue Items: {items_in_qeue:n}, Remaining: {humansize(size_remaining)}, Downloaded: {humansize(size_downloaded)}, Speed: {speed}, Time remaining: {time_remaining},  {description}')
     
 
-def set_creation_Date(file_full_path, new_date):
+def set_creation_Date(file_full_path, new_date_timestamp):
     
-    new_date = datetime.fromtimestamp(new_date)
-    # set the file creation date with the "-d" switch, which presumably stands for "dodification"
-    os.system('SetFile -d "{}" {}'.format(new_date.strftime('%m/%d/%Y %H:%M:%S'), file_full_path))
+    current_os = platform.system()
+    new_date = datetime.fromtimestamp(new_date_timestamp)
+    
+    if current_os in ['Linux', 'Darwin']:
+        # set the file creation date with the "-d" switch, which presumably stands for "dodification"
+        os.system('SetFile -d "{}" {}'.format(new_date.strftime('%m/%d/%Y %H:%M:%S'), file_full_path))
+    elif current_os == 'Windows':
+        setctime(file_full_path, new_date_timestamp)
+    
     # set the file modification date with the "-m" switch
-    os.system('SetFile -m "{}" {}'.format(new_date.strftime('%m/%d/%Y %H:%M:%S'), file_full_path))
+    #os.system('SetFile -m "{}" {}'.format(new_date.strftime('%m/%d/%Y %H:%M:%S'), file_full_path))
+    
+    os.utime(file_full_path,(new_date_timestamp, new_date_timestamp))
+
+    

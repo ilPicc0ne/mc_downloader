@@ -3,6 +3,8 @@ import queue
 import threading
 from datetime import datetime
 
+
+
 import requests
 
 import helper
@@ -17,7 +19,7 @@ class DownloadItem:
         self.size = size
         self.retries = retries
         self.current_dir = current_dir
-        self.creation_date = creation_date
+        self.creation_date = int(creation_date)
 
 
 class DownloadManager:
