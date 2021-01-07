@@ -8,13 +8,16 @@ import requests
 import helper
 
 
+
+
 class DownloadItem:
-    def __init__(self, url, full_file_path, size, retries, current_dir):
+    def __init__(self, url, full_file_path, size, retries, current_dir, creation_date):
         self.url = url
         self.full_file_path = full_file_path
         self.size = size
         self.retries = retries
         self.current_dir = current_dir
+        self.creation_date = creation_date
 
 
 class DownloadManager:
@@ -57,9 +60,12 @@ class DownloadManager:
                 with open(item.full_file_path, 'wb') as f:
                     for chunk in r:
                         f.write(chunk)
+                        
+                helper.set_creation_Date(item.full_file_path, item.creation_date)
                 self.downloaded_size += item.size
                 self.remaining_size -= item.size
-                speed = self.get_download_speed()
+                
+                
                 helper.print_status(self.q.qsize(), self.remaining_size, self.downloaded_size,
                                     speed=self.get_download_speed(), time_remaining=self.time_remaining(),
                                     description='Downloaded')

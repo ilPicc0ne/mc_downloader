@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import os
+
 suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
 
 def humansize(nbytes):
@@ -35,3 +37,12 @@ def print_status(items_in_qeue, size_remaining, size_downloaded, speed, time_rem
         time_remaining = human_time(time_remaining)
     
     print(f'Qeue Items: {items_in_qeue:n}, Remaining: {humansize(size_remaining)}, Downloaded: {humansize(size_downloaded)}, Speed: {speed}, Time remaining: {time_remaining},  {description}')
+    
+
+def set_creation_Date(file_full_path, new_date):
+    
+    new_date = datetime.fromtimestamp(new_date)
+    # set the file creation date with the "-d" switch, which presumably stands for "dodification"
+    os.system('SetFile -d "{}" {}'.format(new_date.strftime('%m/%d/%Y %H:%M:%S'), file_full_path))
+    # set the file modification date with the "-m" switch
+    os.system('SetFile -m "{}" {}'.format(new_date.strftime('%m/%d/%Y %H:%M:%S'), file_full_path))

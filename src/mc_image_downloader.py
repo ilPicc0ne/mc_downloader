@@ -154,8 +154,9 @@ def download_single_object(image_meta, current_dir):
     
     url = base_url + image_meta['Identifier']
     
+    creation_date = image_meta['TimestampEpoch']/1000 #from ms to seconds
     
-    di = DownloadItem(url, full_file_path, image_meta['Length'],0, current_dir)
+    di = DownloadItem(url, full_file_path, image_meta['Length'],0, current_dir, creation_date)
     dm.add_item_to_qeue(di)
     # print ('added item to que: ' + image_meta['Name'])
 
